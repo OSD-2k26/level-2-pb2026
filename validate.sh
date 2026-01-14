@@ -1,38 +1,36 @@
 #!/bin/bash
 set -e
 
-# Fetch all branches (important for CI)
+# Fetch all refs (CRITICAL)
 git fetch --all --quiet
 
-# Get branch names
-BRANCHES=$(git branch --format='%(refname:short)')
+# Get remote branches only, clean format
+REMOTE_BRANCHES=$(git for-each-ref --format='%(refname:short)' refs/remotes | tr '[:upper:]' '[:lower:]')
 
-LEFT_BRANCH=$(echo "$BRANCHES" | grep -i 'left' | head -n 1 || true)
-RIGHT_BRANCH=$(echo "$BRANCHES" | grep -i 'right' | head -n 1 || true)
+LEFT_REF=$(echo "$REMOTE_BRANCHES" | grep -E '/.*left' | head -n 1 || true)
+RIGHT_REF=$(echo "$REMOTE_BRANCHES" | grep -E '/.*right' | head -n 1 || true)
 
-# Check branches exist
-if [ -z "$LEFT_BRANCH" ]; then
+# Validate branches
+[ -n "$LEFT_REF" ] || {
   echo "❌ No branch containing 'left' found"
   exit 1
-fi
+}
 
-if [ -z "$RIGHT_BRANCH" ]; then
+[ -n "$RIGHT_REF" ] || {
   echo "❌ No branch containing 'right' found"
   exit 1
-fi
+}
 
-# Check flag.txt in left/right branches (at least one)
-LEFT_HAS_FLAG=$(git ls-tree -r "$LEFT_BRANCH" --name-only | grep -c "^flag.txt$" || true)
-RIGHT_HAS_FLAG=$(git ls-tree -r "$RIGHT_BRANCH" --name-only | grep -c "^flag.txt$" || true)
+# Check flag.txt exists in at least one branch
+LEFT_HAS_FLAG=$(git ls-tree -r "$LEFT_REF" --name-only | grep -c "^flag.txt$" || true)
+RIGHT_HAS_FLAG=$(git ls-tree -r "$RIGHT_REF" --name-only | grep -c "^flag.txt$" || true)
 
-TOTAL=$((LEFT_HAS_FLAG + RIGHT_HAS_FLAG))
-
-if [ "$TOTAL" -lt 1 ]; then
+if [ $((LEFT_HAS_FLAG + RIGHT_HAS_FLAG)) -lt 1 ]; then
   echo "❌ flag.txt not found in any left/right branch"
   exit 1
 fi
 
-# Ensure flag.txt is NOT in main
+# Ensure flag.txt NOT in main
 MAIN_HAS_FLAG=$(git ls-tree -r main --name-only | grep -c "^flag.txt$" || true)
 
 if [ "$MAIN_HAS_FLAG" -ne 0 ]; then
@@ -41,4 +39,3 @@ if [ "$MAIN_HAS_FLAG" -ne 0 ]; then
 fi
 
 echo "✅ Level 2 Passed"
-
