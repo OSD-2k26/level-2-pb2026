@@ -2,6 +2,8 @@ name: Git CTF Level 2 Validator
 
 on:
   push:
+    branches:
+      - "**"
 
 jobs:
   validate:
@@ -9,8 +11,8 @@ jobs:
     timeout-minutes: 2
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
+      - name: Checkout repository (full history)
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
