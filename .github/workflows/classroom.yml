@@ -1,4 +1,4 @@
-name: Git CTF Level 3 Validator
+name: Git CTF Level 2 Validator
 
 on:
   push:
@@ -9,16 +9,13 @@ jobs:
     timeout-minutes: 2
 
     steps:
-      # Checkout full repository history and all branches
       - name: Checkout repository
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
 
-      # Ensure validator is executable
       - name: Make validator executable
         run: chmod +x validate.sh
 
-      # Run validation
-      - name: Run Level 3 validation
+      - name: Run Level 2 validation
         run: ./validate.sh
