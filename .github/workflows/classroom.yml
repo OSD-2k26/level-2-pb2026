@@ -1,9 +1,5 @@
 name: Git CTF Level 2 Validator
-
-on:
-  push:
-    branches:
-      - "**"
+on: [push]
 
 jobs:
   validate:
@@ -11,13 +7,18 @@ jobs:
     timeout-minutes: 2
 
     steps:
-      - name: Checkout repository (full history)
+      - name: Checkout full repo
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
+      - name: Fetch all branches
+        run: |
+          git fetch --all
+          git branch -r
+
       - name: Make validator executable
         run: chmod +x validate.sh
 
-      - name: Run Level 2 validation
+      - name: Run validator
         run: ./validate.sh
