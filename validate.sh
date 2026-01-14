@@ -1,14 +1,12 @@
 #!/bin/bash
 set -e
 
-# Get all local branch names (without *)
+# Get branch names
 BRANCHES=$(git branch --format='%(refname:short)')
 
-# Find branches containing left and right
 LEFT_BRANCH=$(echo "$BRANCHES" | grep -i 'left' | head -n 1 || true)
 RIGHT_BRANCH=$(echo "$BRANCHES" | grep -i 'right' | head -n 1 || true)
 
-# Validate presence
 if [ -z "$LEFT_BRANCH" ]; then
   echo "❌ No branch containing 'left' found"
   exit 1
@@ -19,15 +17,19 @@ if [ -z "$RIGHT_BRANCH" ]; then
   exit 1
 fi
 
-# Check flag.txt existence in each branch
-LEFT_HAS_FLAG=$(git ls-tree -r "$LEFT_BRANCH" --name-only | grep -c "^flag.txt$" || true)
-RIGHT_HAS_FLAG=$(git ls-tree -r "$RIGHT_BRANCH" --name-only | grep -c "^flag.txt$" || true)
+LEFT_HAS_FLAG=$(git ls-tree -r "$LEFT_BRANCH" --name-only | grep -qi '^flag.txt$' && echo 1 || echo 0)
+RIGHT_HAS_FLAG=$(git ls-tree -r "$RIGHT_BRANCH" --name-only | grep -qi '^flag.txt$' && echo 1 || echo 0)
 
 TOTAL=$((LEFT_HAS_FLAG + RIGHT_HAS_FLAG))
 
 if [ "$TOTAL" -ne 1 ]; then
-  echo "❌ flag.txt must exist in exactly ONE of the left/right branches"
+  echo "❌ flag.txt must exist in EXACTLY ONE of the left/right branches"
   exit 1
 fi
 
-echo "✅ Level 3 Passed"
+if git ls-tree -r main --name-only | grep -qi '^flag.txt$'; then
+  echo "❌ flag.txt must NOT exist in main"
+  exit 1
+fi
+
+echo "✅ Level 2 Passed"
