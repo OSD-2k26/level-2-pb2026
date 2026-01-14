@@ -1,4 +1,4 @@
-# 🧩 LEVEL 3 
+# 🧩 LEVEL 2
 
 Two paths split from the same root.
 
@@ -25,6 +25,9 @@ Choose carefully.
 The correct path is **not the one you are on now**.
 
 Follow the path that is **chosen, not default**.
+
+Choose a side and seal your choice before returning.
+What is written must stay where it was born.
 
 
 
