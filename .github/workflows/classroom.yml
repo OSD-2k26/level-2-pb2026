@@ -1,17 +1,21 @@
 name: Git CTF Level 2 Validator
-on: [push, workflow_dispatch]
+
+on:
+  push:
 
 jobs:
   validate:
     runs-on: ubuntu-latest
+    timeout-minutes: 2
+
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Checkout repository (full history)
+        uses: actions/checkout@v3
         with:
           fetch-depth: 0
-          clean: true # This wipes the workspace to prevent "ghost" files
 
-      - name: Run Validator
-        run: |
-          chmod +x validate.sh
-          ./validate.sh
+      - name: Make validator executable
+        run: chmod +x validate.sh
+
+      - name: Run validation
+        run: ./validate.sh
