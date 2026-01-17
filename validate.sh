@@ -1,76 +1,54 @@
 #!/bin/bash
-set -e
+set -euo pipefail
 
-ARTIFACT="artifact.txt"
+FLAG="flag.txt"
 
-# Fetch everything (CRITICAL)
+echo "🔍 Fetching all remote branches..."
 git fetch --all --quiet
 
-# Required REMOTE branches
-REQUIRED=("alpha" "beta" "gamma" "main")
+# Get remote branches, ignore HEAD pointers
+REMOTE_BRANCHES=$(git branch -r | grep -v -- '->' | tr '[:upper:]' '[:lower:]')
 
-for b in "${REQUIRED[@]}"; do
-  git show-ref --verify --quiet "refs/remotes/origin/$b" || {
-    echo "❌ Required branch '$b' not found"
-    exit 1
-  }
-done
+LEFT_BRANCH=$(echo "$REMOTE_BRANCHES" | grep 'left' | head -n 1 || true)
+RIGHT_BRANCH=$(echo "$REMOTE_BRANCHES" | grep 'right' | head -n 1 || true)
 
-# Helper: commit where artifact is ADDED in a branch
-intro_commit () {
-  git log "origin/$1" --diff-filter=A --pretty=format:%H -- "$ARTIFACT" | tail -n 1
-}
-
-# Artifact must exist in main (final state)
-git show "origin/main:$ARTIFACT" >/dev/null 2>&1 || {
-  echo "❌ artifact.txt not found in main"
+if [ -z "$LEFT_BRANCH" ]; then
+  echo "❌ No branch containing 'left' found"
   exit 1
-}
+fi
 
-# Must be created in alpha
-ALPHA_COMMIT=$(intro_commit alpha)
-[ -n "$ALPHA_COMMIT" ] || {
-  echo "❌ artifact not created in alpha"
+if [ -z "$RIGHT_BRANCH" ]; then
+  echo "❌ No branch containing 'right' found"
   exit 1
+fi
+
+echo "✅ Found branches:"
+echo "   LEFT  → $LEFT_BRANCH"
+echo "   RIGHT → $RIGHT_BRANCH"
+
+# Convert to full ref names
+LEFT_REF="refs/remotes/${LEFT_BRANCH}"
+RIGHT_REF="refs/remotes/${RIGHT_BRANCH}"
+MAIN_REF="refs/remotes/origin/main"
+
+# Helper
+has_flag () {
+  git ls-tree -r "$1" --name-only | grep -qx "$FLAG" && echo 1 || echo 0
 }
 
-# Must appear in beta, gamma, main
-BETA_COMMIT=$(intro_commit beta)
-GAMMA_COMMIT=$(intro_commit gamma)
-MAIN_COMMIT=$(intro_commit main)
+LEFT_HAS=$(has_flag "$LEFT_REF")
+RIGHT_HAS=$(has_flag "$RIGHT_REF")
 
-for c in "$BETA_COMMIT" "$GAMMA_COMMIT" "$MAIN_COMMIT"; do
-  [ -n "$c" ] || {
-    echo "❌ artifact missing in one or more branches"
-    exit 1
-  }
-done
-
-# Validate cherry-pick (identical patches)
-PATCH_ALPHA=$(git show "$ALPHA_COMMIT" --pretty=format: -- "$ARTIFACT")
-PATCH_BETA=$(git show "$BETA_COMMIT" --pretty=format: -- "$ARTIFACT")
-PATCH_GAMMA=$(git show "$GAMMA_COMMIT" --pretty=format: -- "$ARTIFACT")
-PATCH_MAIN=$(git show "$MAIN_COMMIT" --pretty=format: -- "$ARTIFACT")
-
-[ "$PATCH_ALPHA" = "$PATCH_BETA" ] || {
-  echo "❌ alpha → beta not cherry-picked"
+if [ $((LEFT_HAS + RIGHT_HAS)) -ne 1 ]; then
+  echo "❌ flag.txt must exist in EXACTLY ONE of left/right branches"
   exit 1
-}
+fi
 
-[ "$PATCH_BETA" = "$PATCH_GAMMA" ] || {
-  echo "❌ beta → gamma not cherry-picked"
+MAIN_HAS=$(has_flag "$MAIN_REF")
+
+if [ "$MAIN_HAS" -ne 0 ]; then
+  echo "❌ flag.txt must NOT exist in main"
   exit 1
-}
+fi
 
-[ "$PATCH_GAMMA" = "$PATCH_MAIN" ] || {
-  echo "❌ gamma → main not cherry-picked"
-  exit 1
-}
-
-# No merges allowed anywhere
-git log origin/main --merges | grep . && {
-  echo "❌ merge used (not allowed)"
-  exit 1
-}
-
-echo "✅ HARD LEVEL Ω PASSED"
+echo "✅ LEVEL 2 PASSED"
