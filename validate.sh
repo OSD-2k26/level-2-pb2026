@@ -1,52 +1,46 @@
 #!/bin/bash
 set -e
 
-# Sync with remote to see all branches
+# 1. Fetch everything from the server
 git fetch --all --quiet
 
-# Find branches that contain 'left' and 'right' in their names
-# This searches local and remote (origin/...) branches
-LEFT_REF=$(git branch -a | grep -i "left" | head -n 1 | sed 's/[* ]//g' | sed 's/remotes\///' || true)
-RIGHT_REF=$(git branch -a | grep -i "right" | head -n 1 | sed 's/[* ]//g' | sed 's/remotes\///' || true)
+echo "--- GIT DIAGNOSTICS ---"
+# List all remote branches for debugging visibility
+git branch -r
+echo "-----------------------"
 
-echo "--- Debugging Branch Discovery ---"
-echo "Left-style branch found:  $LEFT_REF"
-echo "Right-style branch found: $RIGHT_REF"
-echo "----------------------------------"
-
-# 1. Check if both paths exist
-if [ -z "$LEFT_REF" ]; then
-  echo "❌ Error: Could not find any branch containing 'left'"
-  exit 1
+# 2. Check MAIN branch (Strict)
+# We check origin/main because the runner might be on a different branch
+MAIN_FLAG=$(git ls-tree -r origin/main --name-only | grep -x "flag.txt" || true)
+if [ -n "$MAIN_FLAG" ]; then
+    echo "❌ FAIL: flag.txt is inside the 'main' branch."
+    echo "The instructions say 'The truth is not shared.' It must be removed from main."
+    exit 1
 fi
 
-if [ -z "$RIGHT_REF" ]; then
-  echo "❌ Error: Could not find any branch containing 'right'"
-  exit 1
+# 3. Find side branches and check for the flag
+LEFT_BRANCH=$(git branch -r | grep -i "left" | head -n 1 | sed 's/origin\///;s/ //g' || true)
+RIGHT_BRANCH=$(git branch -r | grep -i "right" | head -n 1 | sed 's/origin\///;s/ //g' || true)
+
+if [ -z "$LEFT_BRANCH" ] || [ -z "$RIGHT_BRANCH" ]; then
+    echo "❌ FAIL: Could not find both a 'left' and 'right' branch."
+    exit 1
 fi
 
-# 2. Check for flag.txt existence
-# We use 'git ls-tree' which works on the branch pointer without switching branches
-LEFT_HAS_FLAG=$(git ls-tree -r "$LEFT_REF" --name-only | grep -c "^flag.txt$" || true)
-RIGHT_HAS_FLAG=$(git ls-tree -r "$RIGHT_REF" --name-only | grep -c "^flag.txt$" || true)
+# 4. Check contents of the side branches
+HAS_FLAG_LEFT=$(git ls-tree -r "origin/$LEFT_BRANCH" --name-only | grep -x "flag.txt" || true)
+HAS_FLAG_RIGHT=$(git ls-tree -r "origin/$RIGHT_BRANCH" --name-only | grep -x "flag.txt" || true)
 
-if [ $((LEFT_HAS_FLAG + RIGHT_HAS_FLAG)) -eq 0 ]; then
-  echo "❌ Error: flag.txt was not found in either the left or right branch."
-  exit 1
+echo "Check: '$LEFT_BRANCH' has flag? -> $HAS_FLAG_LEFT"
+echo "Check: '$RIGHT_BRANCH' has flag? -> $HAS_FLAG_RIGHT"
+
+# 5. Logical Validation
+if [ -n "$HAS_FLAG_LEFT" ] && [ -n "$HAS_FLAG_RIGHT" ]; then
+    echo "❌ FAIL: flag.txt found in BOTH branches. Only one path carries the mark."
+    exit 1
+elif [ -z "$HAS_FLAG_LEFT" ] && [ -z "$HAS_FLAG_RIGHT" ]; then
+    echo "❌ FAIL: flag.txt not found in either branch."
+    exit 1
 fi
 
-# 3. Verify the "Truth is not shared" rule (Only one path carries the mark)
-if [ "$LEFT_HAS_FLAG" -eq 1 ] && [ "$RIGHT_HAS_FLAG" -eq 1 ]; then
-  echo "❌ Error: The truth is not shared. flag.txt found in BOTH branches, but should only be in one."
-  exit 1
-fi
-
-# 4. Ensure flag.txt is NOT in the main branch
-# In GitHub Actions, 'main' is the default checkout
-MAIN_HAS_FLAG=$(git ls-tree -r HEAD --name-only | grep -c "^flag.txt$" || true)
-if [ "$MAIN_HAS_FLAG" -ne 0 ]; then
-  echo "❌ Error: flag.txt must NOT exist in the main branch."
-  exit 1
-fi
-
-echo "✅ Level 2 Passed: Paths verified and flag location is correct."
+echo "✅ SUCCESS: Level 2 Passed!"
