@@ -5,14 +5,12 @@ jobs:
   validate:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Repository
+      - name: Checkout Repo
         uses: actions/checkout@v4
         with:
-          # fetch-depth 0 fetches all branches and tags
-          fetch-depth: 0 
-
-      - name: Make Validator Executable
-        run: chmod +x validate.sh
-
-      - name: Run Level 2 Validation
-        run: ./validate.sh
+          fetch-depth: 0 # Get all history/branches
+          
+      - name: Run Validator
+        run: |
+          chmod +x validate.sh
+          ./validate.sh
