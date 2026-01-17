@@ -12,10 +12,13 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Fetch all branches
+      - name: Ensure all branches are tracked
         run: |
           git fetch --all
-          git branch -r
+          # This forces local tracking of remote branches so the script sees them easily
+          for remote in $(git branch -r | grep -v '\->'); do
+            git branch --track "${remote#origin/}" "$remote" || true
+          done
 
       - name: Make validator executable
         run: chmod +x validate.sh
